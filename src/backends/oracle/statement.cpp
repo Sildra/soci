@@ -299,9 +299,13 @@ void oracle_statement_backend::describe_column(int colNum, data_type &type,
                 type = dt_double;
             }
         }
-        else if (dbprec <= std::numeric_limits<int>::digits10)
+        else if (dbprec <= std::numeric_limits<int>::digits10 + 1)
         {
             type = dt_integer;
+        }
+        else if (dbprec == std::numeric_limits<unsigned long long>::digits10 + 1)
+        {
+            type = dt_unsigned_long_long;
         }
         else
         {

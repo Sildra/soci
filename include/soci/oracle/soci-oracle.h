@@ -367,7 +367,10 @@ struct oracle_session_backend : details::session_backend
                 }
                 else
                 {
-                    oss << "number(" << precision << ", " << scale << ")";
+                    if (get_double_sql_type() == SQLT_FLT)
+                        oss << "number(" << precision << ", " << scale << ")";
+                    else
+                        oss << "binary_double";
                 }
 
                 res += oss.str();
@@ -375,15 +378,15 @@ struct oracle_session_backend : details::session_backend
             break;
 
         case dt_integer:
-            res += "integer";
+            res += "number(" + std::to_string(std::numeric_limits<int>::digit10 + 1) + ",0)";
             break;
 
         case dt_long_long:
-            res += "number";
+            res += "number(" + std::to_string(std::numeric_limits<long long>::digit10 + 1) + ",0)";
             break;
 
         case dt_unsigned_long_long:
-            res += "number";
+            res += "number(" + std::to_string(std::numeric_limits<unsigned long long>::digit10 + 1) + ",0)";
             break;
 
         case dt_blob:
