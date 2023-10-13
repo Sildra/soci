@@ -641,6 +641,99 @@ TEST_CASE("SQLite DDL with metadata", "[sqlite][ddl]")
 #endif /* !SQLITE VERSION CHECK */
 }
 
+template<typename T>
+struct limit_tester {
+    typedef T val_type;
+    limit_tester(soci::data_type inT, T inV) : inType(inT), inVal(inV) {}
+    soci::data_type inType;
+    T inVal;
+    soci::data_type outType;
+    T outVal;
+};
+
+template<typename T>
+void get_safe_data(T& t, const soci::values& v)
+{
+    std::size_t pos = v.find_column("VAL");
+    t.outType = v.get_properties(pos).get_data_type();
+    switch (t.outType) {
+        case soci::dt_string: break;
+        case soci::dt_double: // sqlite stores NaN as NULL, so we handle the get with a default value
+            t.outVal = static_cast<typename T::val_type>(v.get<double>(pos, std::numeric_limits<double>::quiet_NaN()));
+            break;
+        case soci::dt_integer:
+            t.outVal = static_cast<typename T::val_type>(v.get<int>(pos));
+            break;
+        case soci::dt_unsigned_long_long:
+            t.outVal = static_cast<typename T::val_type>(v.get<unsigned long long>(pos));
+            break;
+        case soci::dt_long_long:
+            t.outVal = static_cast<typename T::val_type>(v.get<long long>(pos));
+            break;
+        default: break;
+    }
+}
+
+namespace soci
+{
+template<typename T>
+struct type_conversion<limit_tester<T>>
+{
+    typedef soci::values base_type;
+    static void from_base(const soci::values& v, soci::indicator, limit_tester<T>& t)
+    { get_safe_data(t, v); }
+    static void to_base(const limit_tester<T>& t, soci::values& v, soci::indicator&)
+    { v.set("VAL", t.inVal); }
+};
+} /* !namespace soci */
+
+template<typename T>
+void compare(const T& v1, const T& v2)
+{ CHECK(v1 == v2); }
+template<>
+void compare(const double& v1, const double& v2)
+{
+    CHECK(std::fpclassify(v1) == std::fpclassify(v2));
+    if (std::isnormal(v1) && std::isnormal(v2))
+        CHECK(v1 == v2);
+}
+
+template<typename T>
+void test_limit(limit_tester<T>&& tester)
+{
+    const std::string table = "TEST_LIMIT";
+    soci::session sql(backEnd, connectString);
+    try {
+        sql.create_table(table).column("VAL", tester.inType);
+        sql << "INSERT INTO " << table << "(VAL) VALUES (:VAL)", soci::use(tester.inVal);
+        soci::statement stmt = (sql.prepare << "SELECT * FROM " << table);
+        stmt.exchange(soci::into(tester));
+        stmt.define_and_bind();
+        stmt.execute();
+        stmt.fetch();
+        CHECK(tester.inType == tester.outType);
+        compare(tester.inVal, tester.outVal);
+    } catch (std::exception& e) {
+        CHECK_FALSE(e.what());
+    }
+    sql << "DROP TABLE " << table;
+}
+
+// Test the DDL creation and retrieval of types and limits
+TEST_CASE("SQLite DDL symmetry", "[sqlite][ddl][symmetry]")
+{
+    test_limit(limit_tester<double>            (soci::dt_double,             std::numeric_limits<double>::max()));
+    test_limit(limit_tester<int>               (soci::dt_integer,            std::numeric_limits<int>::max()));
+    test_limit(limit_tester<long long>         (soci::dt_long_long,          std::numeric_limits<long long>::max()));
+    test_limit(limit_tester<unsigned long long>(soci::dt_unsigned_long_long, std::numeric_limits<unsigned long long>::max()));
+    test_limit(limit_tester<double>            (soci::dt_double,             std::numeric_limits<double>::min()));
+    test_limit(limit_tester<int>               (soci::dt_integer,            std::numeric_limits<int>::min()));
+    test_limit(limit_tester<long long>         (soci::dt_long_long,          std::numeric_limits<long long>::min()));
+    test_limit(limit_tester<unsigned long long>(soci::dt_unsigned_long_long, std::numeric_limits<unsigned long long>::min()));
+    
+    test_limit(limit_tester<double>            (soci::dt_double,             std::numeric_limits<double>::quiet_NaN()));
+}
+
 TEST_CASE("SQLite vector long long", "[sqlite][vector][longlong]")
 {
     soci::session sql(backEnd, connectString);

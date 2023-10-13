@@ -333,10 +333,13 @@ struct sqlite3_session_backend : details::session_backend
             case dt_double:
                 return "real";
             case dt_date:
+                return "date";
             case dt_integer:
-            case dt_long_long:
-            case dt_unsigned_long_long:
                 return "integer";
+            case dt_long_long:
+                return "bigint";
+            case dt_unsigned_long_long:
+                return "unsignedbigint";
             case dt_blob:
                 return "blob";
             default:
