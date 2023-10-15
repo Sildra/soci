@@ -51,8 +51,25 @@ public:
 
     values() : row_(NULL), currentPos_(0), uppercaseColumnNames_(false) {}
 
+    std::size_t find_column(std::string const& name) const
+    {
+        if (row_ != NULL)
+            return row_->find_column(name);
+
+        const auto pos = index_.find(name);
+        if (pos != index_.end())
+        {
+            return pos->second;
+        }
+        throw soci_error("Value named " + name + " not found.");
+    }
+
     indicator get_indicator(std::size_t pos) const;
-    indicator get_indicator(std::string const & name) const;
+    indicator get_indicator(std::string const & name) const
+    {
+        std::size_t pos = find_column(name);
+        return get_indicator(pos);
+    }
 
     template <typename T>
     T get(std::size_t pos) const
@@ -82,28 +99,22 @@ public:
         {
             return row_->get<T>(pos, nullValue);
         }
-        else if (*indicators_[pos] == i_null)
-        {
-            return nullValue;
-        }
         else
         {
-            return get_from_uses<T>(pos);
+            return get_from_uses<T>(pos, nullValue);
         }
     }
 
     template <typename T>
     T get(std::string const & name) const
     {
-        return row_ != NULL ? row_->get<T>(name) : get_from_uses<T>(name);
+        return get<T>(find_column(name));
     }
 
     template <typename T>
     T get(std::string const & name, T const & nullValue) const
     {
-        return row_ != NULL
-            ? row_->get<T>(name, nullValue)
-            : get_from_uses<T>(name, nullValue);
+        return get<T>(find_column(name), nullValue);
     }
 
     template <typename T>
@@ -254,30 +265,14 @@ private:
     // without an underlying row object.  In that case, get_from_uses()
     // returns the underlying field values
     template <typename T>
-    T get_from_uses(std::string const & name, T const & nullValue) const
+    T get_from_uses(std::size_t pos, T const & nullValue) const
     {
-        std::map<std::string, std::size_t>::const_iterator pos = index_.find(name);
-        if (pos != index_.end())
+        if (*indicators_[pos] == i_null)
         {
-            if (*indicators_[pos->second] == i_null)
-            {
-                return nullValue;
-            }
-
-            return get_from_uses<T>(pos->second);
+            return nullValue;
         }
-        throw soci_error("Value named " + name + " not found.");
-    }
 
-    template <typename T>
-    T get_from_uses(std::string const & name) const
-    {
-        std::map<std::string, std::size_t>::const_iterator pos = index_.find(name);
-        if (pos != index_.end())
-        {
-            return get_from_uses<T>(pos->second);
-        }
-        throw soci_error("Value named " + name + " not found.");
+        return get_from_uses<T>(pos);
     }
 
     template <typename T>

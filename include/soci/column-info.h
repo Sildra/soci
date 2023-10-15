@@ -33,21 +33,22 @@ struct type_conversion<column_info>
     static std::size_t get_numeric_value(const values & v,
         const std::string & field_name)
     {
-        data_type dt = v.get_properties(field_name).get_data_type();
+        std::size_t pos = v.find_column(field_name);
+        data_type dt = v.get_properties(pos).get_data_type();
         switch (dt)
         {
         case dt_double:
             return static_cast<std::size_t>(
-                v.get<double>(field_name, 0.0));
+                v.get<double>(pos, 0.0));
         case dt_integer:
             return static_cast<std::size_t>(
-                v.get<int>(field_name, 0));
+                v.get<int>(pos, 0));
         case dt_long_long:
             return static_cast<std::size_t>(
-                v.get<long long>(field_name, 0ll));
+                v.get<long long>(pos, 0ll));
         case dt_unsigned_long_long:
             return static_cast<std::size_t>(
-                v.get<unsigned long long>(field_name, 0ull));
+                v.get<unsigned long long>(pos, 0ull));
             break;
         default:
             return 0u;

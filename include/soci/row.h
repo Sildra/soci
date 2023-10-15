@@ -46,6 +46,8 @@ public:
     row(row &&other) = default;
     row &operator=(row &&other) = default;
 
+    std::size_t find_column(std::string const& name) const;
+
     void uppercase_column_names(bool forceToUpper);
     void add_properties(column_properties const& cp);
     std::size_t size() const;
@@ -97,13 +99,7 @@ public:
     T get(std::string const &name, T const &nullValue) const
     {
         std::size_t const pos = find_column(name);
-
-        if (i_null == *indicators_[pos])
-        {
-            return nullValue;
-        }
-
-        return get<T>(pos);
+        return get<T>(pos, nullValue);
     }
 
     template <typename T>
@@ -126,8 +122,6 @@ public:
 
 private:
     SOCI_NOT_COPYABLE(row)
-
-    std::size_t find_column(std::string const& name) const;
 
     std::vector<column_properties> columns_;
     std::vector<details::holder*> holders_;

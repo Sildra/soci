@@ -29,25 +29,6 @@ indicator values::get_indicator(std::size_t pos) const
     }
 }
 
-indicator values::get_indicator(std::string const& name) const
-{
-    if (row_)
-    {
-        return row_->get_indicator(name);
-    }
-    else
-    {
-        std::map<std::string, std::size_t>::const_iterator it = index_.find(name);
-        if (it == index_.end())
-        {
-            std::ostringstream msg;
-            msg << "Column '" << name << "' not found";
-            throw soci_error(msg.str());
-        }
-        return *indicators_[it->second];
-    }
-}
-
 column_properties const& values::get_properties(std::size_t pos) const
 {
     if (row_)
