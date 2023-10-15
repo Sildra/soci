@@ -631,37 +631,37 @@ namespace details
 template<>
 void statement_impl::bind_into<dt_string>()
 {
-    into_row<std::string>();
+    into_row<std::string>(dt_string);
 }
 
 template<>
 void statement_impl::bind_into<dt_double>()
 {
-    into_row<double>();
+    into_row<double>(dt_double);
 }
 
 template<>
 void statement_impl::bind_into<dt_integer>()
 {
-    into_row<int>();
+    into_row<int>(dt_integer);
 }
 
 template<>
 void statement_impl::bind_into<dt_long_long>()
 {
-    into_row<long long>();
+    into_row<long long>(dt_long_long);
 }
 
 template<>
 void statement_impl::bind_into<dt_unsigned_long_long>()
 {
-    into_row<unsigned long long>();
+    into_row<unsigned long long>(dt_unsigned_long_long);
 }
 
 template<>
 void statement_impl::bind_into<dt_date>()
 {
-    into_row<std::tm>();
+    into_row<std::tm>(dt_date);
 }
 
 void statement_impl::describe()

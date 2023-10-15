@@ -57,9 +57,9 @@ public:
     indicator get_indicator(std::string const& name) const;
 
     template <typename T>
-    inline void add_holder(T* t, indicator* ind)
+    inline void add_holder(soci::data_type dt, T* t, indicator* ind)
     {
-        holders_.push_back(new details::type_holder<T>(t));
+        holders_.push_back(new details::type_holder<T>(dt, t));
         indicators_.push_back(ind);
     }
 

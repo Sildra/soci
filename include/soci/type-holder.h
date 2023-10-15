@@ -8,9 +8,9 @@
 #ifndef SOCI_TYPE_HOLDER_H_INCLUDED
 #define SOCI_TYPE_HOLDER_H_INCLUDED
 
-#include "soci/soci-platform.h"
+#include "soci/soci-backend.h"
 // std
-#include <cstring>
+#include <ctime>
 #include <typeinfo>
 
 namespace soci
@@ -52,42 +52,115 @@ class type_holder;
 class holder
 {
 public:
-    holder() {}
+    holder(soci::data_type dt_) : dt(dt_) {}
     virtual ~holder() {}
 
     template<typename T>
-    T get()
-    {
-        type_holder<T>* p = checked_ptr_cast<type_holder<T> >(this);
-        if (p)
-        {
-            return p->template value<T>();
-        }
-        else
-        {
-            throw std::bad_cast();
-        }
-    }
-
+    T get();
 private:
-
-    template<typename T>
-    T value();
+    soci::data_type dt;
 };
 
 template <typename T>
 class type_holder : public holder
 {
 public:
-    type_holder(T * t) : t_(t) {}
+    type_holder(soci::data_type dt, T * t) : holder(dt), t_(t) {}
     ~type_holder() override { delete t_; }
 
-    template<typename TypeValue>
-    TypeValue value() const { return *t_; }
+    T value() const { return *t_; }
 
 private:
     T * t_;
 };
+
+class type_holder_bad_cast : public std::bad_cast
+{
+public:
+    type_holder_bad_cast(soci::data_type dt, const std::string& context)
+    {
+        info = std::bad_cast::what();
+        switch (dt)
+        {
+            case soci::dt_string:               info.append(": expected std::string, got ");        break;
+            case soci::dt_date:                 info.append(": expected std::tm, got ");            break;
+            case soci::dt_double:               info.append(": expected double, got ");             break;
+            case soci::dt_integer:              info.append(": expected int, got ");                break;
+            case soci::dt_long_long:            info.append(": expected long long, got ");          break;
+            case soci::dt_unsigned_long_long:   info.append(": expected unsigned long long, got "); break;
+            case soci::dt_blob:                 info.append(": expected std::string(blob), got ");  break;
+            case soci::dt_xml:                  info.append(": expected std::string(xml), got ");   break;
+        }
+        info.append(context);
+    }
+    const char* what() const noexcept override
+    {
+        return info.c_str();
+    }
+private:
+    std::string info;
+};
+
+template<typename T, typename Enable = void>
+struct type_holder_cast
+{
+    static_assert(std::is_same<T, void>::value, "Unmatched type_holder");
+    static inline T cast(soci::data_type, const holder*)
+    {
+        throw std::bad_cast(); // Unreachable: only provided for compilation corectness
+    }
+};
+
+
+template<typename T>
+struct type_holder_cast<T, typename std::enable_if<std::is_arithmetic<T>::value>::type>
+{
+    static inline T cast(soci::data_type dt, const holder* hl)
+    {
+        switch (dt)
+        {
+            case soci::dt_double:               return (T)static_cast<const type_holder<double>*>(hl)->value();
+            case soci::dt_integer:              return (T)static_cast<const type_holder<int>*>(hl)->value();
+            case soci::dt_long_long:            return (T)static_cast<const type_holder<long long>*>(hl)->value();
+            case soci::dt_unsigned_long_long:   return (T)static_cast<const type_holder<unsigned long long>*>(hl)->value();
+            default: throw type_holder_bad_cast(dt, typeid(T).name());
+        }
+    }
+};
+
+template<>
+struct type_holder_cast<std::string>
+{
+    static inline std::string cast(soci::data_type dt, const holder* hl)
+    {
+        switch (dt)
+        {
+            case soci::dt_blob:
+            case soci::dt_xml:
+            case soci::dt_string:   return static_cast<const type_holder<std::string>*>(hl)->value();
+            default: throw type_holder_bad_cast(dt, "std::string");
+        }
+    }
+};
+
+template<>
+struct type_holder_cast<std::tm>
+{
+    static inline std::tm cast(soci::data_type dt, const holder* hl)
+    {
+        switch (dt)
+        {
+            case soci::dt_date: return static_cast<const type_holder<std::tm>*>(hl)->value();
+            default: throw type_holder_bad_cast(dt, "std::tm");
+        }
+    }
+};
+
+template<typename T>
+T holder::get()
+{
+    return type_holder_cast<T>::cast(dt, this);
+}
 
 } // namespace details
 

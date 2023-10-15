@@ -136,11 +136,11 @@ private:
     void define_for_row();
 
     template<typename T>
-    void into_row()
+    void into_row(data_type dt)
     {
         T * t = new T();
         indicator * ind = new indicator(i_ok);
-        row_->add_holder(t, ind);
+        row_->add_holder(dt, t, ind);
         exchange_for_row(into(*t, *ind));
     }
 
